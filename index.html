@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f14">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>ĐIỀU CHỈNH EQ</title>
+<style>
+:root{
+  color-scheme: dark;
+  --bg:#0b0f14; --card:#141b24; --line:#26313f; --txt:#e8eef5; --mut:#8b99aa;
+  --acc:#35c2ff; --acc2:#1f7fb0; --ok:#3ddc84; --bad:#ff5d5d;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));
+  max-width:900px;margin:0 auto;user-select:none;-webkit-user-select:none}
+header{display:flex;align-items:center;gap:10px;justify-content:space-between;margin-bottom:10px}
+h1{font-size:16px;margin:0;font-weight:650;line-height:1.25}
+.brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.brand img{width:42px;height:42px;border-radius:50%;flex:none;display:block}
+.conn{flex:none;display:flex;flex-direction:row;align-items:center;gap:8px;max-width:58%}
+.conn button{padding:5px 10px;font-size:12px;border-radius:8px;white-space:nowrap}
+.status{font-size:10.5px;color:var(--mut);display:flex;align-items:center;gap:5px;justify-content:flex-end;text-align:right;line-height:1.25}
+.status .dot{flex:none}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--bad)}
+.dot.on{background:var(--ok)}
+button{font:inherit;color:var(--txt);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 13px;font-size:14px}
+button:active{background:#1c2733}
+button.pri{background:var(--acc2);border-color:var(--acc);font-weight:600}
+#btnConn{background:#1f9d55;border-color:#3ddc84;color:#fff}
+#btnConn:active{background:#18804a}
+#btnConn.disc{background:#c0392b;border-color:#ff5d5d}
+#btnConn.disc:active{background:#a5301f}
+button[disabled]{opacity:.45}
+[hidden]{display:none!important}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.row .grow{flex:1}
+.chips{display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);gap:7px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;padding:7px 12px;font-size:13px;border-radius:999px}
+.chip.act{background:var(--acc2);border-color:var(--acc)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px}
+canvas{width:100%;height:110px;display:block;margin-bottom:6px}
+.eq{display:flex;gap:2px;height:min(48vh,330px);min-height:230px}
+.band{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center}
+.val{font-size:9px;color:var(--mut);height:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.band.touch .val{color:var(--acc);font-weight:700}
+.track{position:relative;flex:1;width:100%;touch-action:none;cursor:pointer}
+.track::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:3px;margin-left:-1.5px;background:var(--line);border-radius:2px}
+.zero{position:absolute;left:18%;right:18%;top:50%;height:1px;background:#3a4859}
+.fill{position:absolute;left:50%;width:3px;margin-left:-1.5px;background:var(--acc);border-radius:2px}
+.thumb{position:absolute;left:5%;right:5%;height:12px;margin-top:-6px;background:var(--txt);border-radius:4px;box-shadow:0 1px 4px #000a}
+.band.touch .thumb{background:var(--acc)}
+.lab{font-size:9px;color:var(--txt);height:16px;display:flex;align-items:center;white-space:nowrap}
+.lab.hz{color:var(--mut)}
+.scale{display:flex;justify-content:space-between;font-size:10px;color:var(--mut);margin:4px 2px 0}
+.switch{display:flex;align-items:center;gap:8px;font-size:14px}
+.switch input{width:20px;height:20px;accent-color:var(--acc)}
+.msg{font-size:12px;color:var(--mut);margin-top:10px;line-height:1.5}
+.msg b{color:var(--txt)}
+.opts{margin-top:10px;padding:2px 12px}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0}
+.opt + .opt{border-top:1px solid var(--line)}
+.opt b{display:block;font-size:14px;font-weight:600}
+.opt small{display:block;font-size:12px;color:var(--mut);line-height:1.4;margin-top:2px}
+.tg{-webkit-appearance:none;appearance:none;flex:none;width:48px;height:28px;border-radius:999px;background:#2b3644;position:relative;margin:0;transition:background .15s}
+.tg::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .15s}
+.tg:checked{background:#1f9d55}
+.tg:checked::after{transform:translateX(20px)}
+.tg:disabled{opacity:.4}
+.off .eq,.off canvas{opacity:.45}
+@media (min-width:600px){.val,.lab{font-size:11px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><img src="logo.png" alt="G&S Automotive" width="42" height="42"><h1>Điều chỉnh EQ cho loa VF2/Minio Green</h1></div>
+  <div class="conn">
+    <div class="status"><span class="dot" id="dot"></span><span id="stt">Chưa kết nối</span></div>
+    <button class="pri" id="btnConn">Kết nối thiết bị</button>
+  </div>
+</header>
+
+<div class="panel opts" style="margin:0 0 10px">
+  <label class="opt">
+    <b>Điều chỉnh Equalizer</b>
+    <input type="checkbox" class="tg" id="chkOn" checked>
+  </label>
+</div>
+
+<div class="chips" id="chips"></div>
+
+<div class="panel" id="panel">
+  <canvas id="cv"></canvas>
+  <div class="eq" id="eq"></div>
+  <div class="scale"><span>+12 dB</span><span>0</span><span>−12 dB</span></div>
+</div>
+
+<div class="panel opts" id="opts">
+  <label class="opt">
+    <span><b>Giảm nhỏ nhạc khi mở cửa</b><small>Bật: mở cửa xe thì nhạc tự nhỏ lại.</small></span>
+    <input type="checkbox" class="tg" id="swDoor" disabled>
+  </label>
+  <label class="opt">
+    <span><b>Chuyển bài bằng phím Up/Down</b><small>Bật: Down = bài kế, Up = bài trước (Next/Back không chuyển bài).<br>Tắt: Next = bài kế, Back = bài trước.</small></span>
+    <input type="checkbox" class="tg" id="swNav" disabled>
+  </label>
+</div>
+<div class="msg" id="optNote" hidden></div>
+
+<div class="row" style="margin-top:10px">
+  <button class="pri grow" id="btnInstall" hidden>Cài đặt ứng dụng</button>
+</div>
+
+<script>
+'use strict';
+/* ====== Cấu hình: PHẢI khớp với firmware (BLE.cpp, DSP.cpp) ====== */
+const SERVICE = '7c8f0001-3b1e-4a52-9d6a-2f5e8b1c0001';
+const CHAR    = '7c8f0002-3b1e-4a52-9d6a-2f5e8b1c0001';
+const SET_CHAR = '7c8f0003-3b1e-4a52-9d6a-2f5e8b1c0001';   // cài đặt: [giảm nhạc khi mở cửa, đổi phím chuyển bài]
+const N = 15, FS = 44100, Q = 2.14, GMAX = 24;              // gain tính theo 0.5 dB: -24..+24
+const FREQ  = [25,40,63,100,160,250,400,630,1000,1600,2500,4000,6300,10000,16000];
+const LABEL = ['25','40','63','100','160','250','400','630','1k','1.6k','2.5k','4k','6.3k','10k','16k'];
+const TYPE  = [0,1,1,1,1,1,1,1,1,1,1,1,1,1,2];             // 0 low-shelf, 1 peaking, 2 high-shelf
+const PRESETS = [   // 25  40  63 100 160 250 400 630  1k 1.6k 2.5k 4k 6.3k 10k 16k   (đơn vị 0.5 dB; thứ tự phải khớp firmware)
+  ['Mặc định', [  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0]],
+  ['Bass mạnh', [ 10, 12, 14, 12, 10,  6,  2,  0,  0,  0,  0,  0,  0,  0,  0]],
+  ['Giọng hát', [ -4, -4, -4, -2,  0,  0,  0,  2,  4,  5,  6,  8,  6,  2,  0]],
+  ['Treble sáng', [  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  2,  4,  6,  8, 12]],
+  ['Remix', [  6, 10, 14, 14,  6, -2, -4, -2,  0,  2,  4,  6,  8, 10,  8]],
+  ['Bolero', [ -2,  0,  2,  4,  6,  4,  2,  0,  2,  4,  6,  4,  2, -2, -4]],
+  ['Nhạc trẻ', [  2,  4,  6,  6,  4,  2,  0,  0,  2,  4,  4,  4,  4,  4,  2]],
+  ['Rock', [  4,  6,  6,  4,  0, -2, -2,  0,  2,  4,  6,  6,  6,  4,  2]],
+  ['Hip-hop', [  8, 12, 14, 10,  6,  2,  0,  0,  2,  2,  2,  2,  4,  4,  2]],
+  ['Acoustic', [  0,  0,  2,  4,  4,  2,  0,  0,  2,  2,  4,  4,  4,  6,  6]],
+  ['Jazz', [  2,  4,  4,  2,  2,  0,  0,  0,  0,  2,  2,  4,  4,  4,  2]],
+  ['Nhẹ nhàng', [  6,  8,  8,  6,  2,  0,  0,  0,  0,  0,  0,  2,  4,  6,  6]],
+];
+
+/* ====== Trạng thái ====== */
+let gains = new Array(N).fill(0), eqOn = true;
+let device = null, chr = null, setChr = null, connected = false, userTouchAt = 0;
+const $ = id => document.getElementById(id);
+
+/* ====== Dựng giao diện ====== */
+const bandEls = [];
+FREQ.forEach((f, i) => {
+  const b = document.createElement('div'); b.className = 'band';
+  b.innerHTML = '<div class="val">0</div><div class="track"><div class="zero"></div><div class="fill"></div><div class="thumb"></div></div><div class="lab">' + LABEL[i] + '</div>';
+  $('eq').appendChild(b);
+  const track = b.querySelector('.track');
+  const setFromY = e => {
+    const r = track.getBoundingClientRect();
+    const t = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+    setGain(i, Math.round((0.5 - t) * 2 * GMAX), true);
+  };
+  track.addEventListener('pointerdown', e => { track.setPointerCapture(e.pointerId); b.classList.add('touch'); setFromY(e); });
+  track.addEventListener('pointermove', e => { if (track.hasPointerCapture(e.pointerId)) setFromY(e); });
+  const end = () => b.classList.remove('touch');
+  track.addEventListener('pointerup', end); track.addEventListener('pointercancel', end);
+  b.querySelector('.lab').addEventListener('dblclick', () => setGain(i, 0, true));   // chạm đúp nhãn = về 0 dB
+  bandEls.push(b);
+});
+
+PRESETS.forEach(([name, g], k) => {
+  const c = document.createElement('button'); c.className = 'chip'; c.textContent = name;
+  c.onclick = () => { gains = g.slice(); eqOn = true; render(); queueSend(); };
+  $('chips').appendChild(c);
+});
+
+function fmt(v){ const d = v / 2; return (d > 0 ? '+' : '') + (Number.isInteger(d) ? d : d.toFixed(1)); }
+
+function render() {
+  bandEls.forEach((b, i) => {
+    const v = gains[i], p = (1 - (v + GMAX) / (2 * GMAX)) * 100;      // % từ trên
+    b.querySelector('.val').textContent = fmt(v);
+    b.querySelector('.thumb').style.top = p + '%';
+    const f = b.querySelector('.fill');
+    f.style.top = Math.min(p, 50) + '%'; f.style.height = Math.abs(p - 50) + '%';
+  });
+  $('chkOn').checked = eqOn;
+  $('panel').classList.toggle('off', !eqOn);
+  [...$('chips').children].forEach((c, k) => c.classList.toggle('act', PRESETS[k][1].every((x, i) => x === gains[i])));
+  drawCurve();
+}
+
+function setGain(i, v, send) {
+  v = Math.max(-GMAX, Math.min(GMAX, v));
+  if (gains[i] === v) return;
+  gains[i] = v; userTouchAt = Date.now(); render();
+  if (send) queueSend();
+}
+
+/* ====== Đường cong đáp ứng (cùng công thức RBJ với firmware) ====== */
+function biquad(type, f, db) {
+  if (!db) return null;
+  const A = Math.pow(10, db / 40), w0 = 2 * Math.PI * f / FS, cs = Math.cos(w0), sn = Math.sin(w0);
+  let b0, b1, b2, a0, a1, a2;
+  if (type === 1) {
+    const al = sn / (2 * Q);
+    b0 = 1 + al * A; b1 = -2 * cs; b2 = 1 - al * A; a0 = 1 + al / A; a1 = -2 * cs; a2 = 1 - al / A;
+  } else {
+    const al = sn * Math.SQRT1_2, be = 2 * Math.sqrt(A) * al;
+    if (type === 0) {
+      b0 = A * ((A + 1) - (A - 1) * cs + be); b1 = 2 * A * ((A - 1) - (A + 1) * cs); b2 = A * ((A + 1) - (A - 1) * cs - be);
+      a0 = (A + 1) + (A - 1) * cs + be; a1 = -2 * ((A - 1) + (A + 1) * cs); a2 = (A + 1) + (A - 1) * cs - be;
+    } else {
+      b0 = A * ((A + 1) + (A - 1) * cs + be); b1 = -2 * A * ((A - 1) + (A + 1) * cs); b2 = A * ((A + 1) + (A - 1) * cs - be);
+      a0 = (A + 1) - (A - 1) * cs + be; a1 = 2 * ((A - 1) - (A + 1) * cs); a2 = (A + 1) - (A - 1) * cs - be;
+    }
+  }
+  return [b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0];
+}
+function respDb(cs, f) {
+  const w = 2 * Math.PI * f / FS, c1 = Math.cos(w), s1 = Math.sin(w), c2 = Math.cos(2 * w), s2 = Math.sin(2 * w);
+  let db = 0;
+  for (const c of cs) {
+    if (!c) continue;
+    const nr = c[0] + c[1] * c1 + c[2] * c2, ni = -(c[1] * s1 + c[2] * s2);
+    const dr = 1 + c[3] * c1 + c[4] * c2,    di = -(c[3] * s1 + c[4] * s2);
+    db += 10 * Math.log10((nr * nr + ni * ni) / (dr * dr + di * di));
+  }
+  return db;
+}
+function drawCurve() {
+  const cv = $('cv'), dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if (!W) return;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const Y = db => H / 2 - db / 18 * (H / 2);                          // hiển thị ±18 dB
+  g.strokeStyle = '#26313f'; g.lineWidth = 1; g.fillStyle = '#8b99aa'; g.font = '9px system-ui';
+  [-12, -6, 0, 6, 12].forEach(d => { g.beginPath(); g.moveTo(0, Y(d)); g.lineTo(W, Y(d)); g.stroke(); });
+  [100, 1000, 10000].forEach(f => { const x = Math.log10(f / 20) / 3 * W; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); g.fillText(f >= 1000 ? f / 1000 + 'k' : f, x + 2, H - 2); });
+  const cs = gains.map((v, i) => biquad(TYPE[i], FREQ[i], v / 2));
+  g.beginPath(); g.strokeStyle = '#35c2ff'; g.lineWidth = 2;
+  for (let x = 0; x <= W; x += 2) {
+    const f = 20 * Math.pow(1000, x / W);
+    const y = Y(Math.max(-18, Math.min(18, respDb(cs, f))));
+    x ? g.lineTo(x, y) : g.moveTo(x, y);
+  }
+  g.stroke();
+}
+addEventListener('resize', drawCurve);
+
+/* ====== Hàng đợi GATT: Web Bluetooth không cho 2 thao tác chạy chồng nhau ====== */
+let gattChain = Promise.resolve();
+function gatt(fn) { const r = gattChain.then(fn); gattChain = r.catch(() => {}); return r; }
+
+/* ====== Gửi (gộp thay đổi, mỗi lần chỉ 1 lệnh ghi đang chạy) ====== */
+let sending = false, dirty = false;
+function packet() {
+  const p = new Uint8Array(1 + N);
+  p[0] = eqOn ? 1 : 0;
+  for (let i = 0; i < N; i++) p[1 + i] = gains[i] & 0xFF;               // int8 bù 2
+  return p;
+}
+function queueSend() { dirty = true; if (!sending) pump(); }
+async function pump() {
+  sending = true;
+  while (dirty) {
+    dirty = false;
+    if (!connected || !chr) break;
+    try {
+      await gatt(() => chr.writeValueWithoutResponse ? chr.writeValueWithoutResponse(packet()) : chr.writeValue(packet()));
+    } catch (e) { console.warn('ghi lỗi', e); dirty = connected; }
+    await new Promise(r => setTimeout(r, 45));                          // ~20 lần/giây là đủ mượt
+  }
+  sending = false;
+}
+$('chkOn').onchange = e => { eqOn = e.target.checked; render(); queueSend(); };
+
+/* ====== Cài đặt xe (giảm nhạc khi mở cửa, đổi phím chuyển bài) ====== */
+function refreshOpts() {
+  const ok = connected && !!setChr;
+  $('swDoor').disabled = $('swNav').disabled = !ok;
+  const n = $('optNote');
+  if (connected && !setChr) { n.hidden = false; n.textContent = 'Firmware của thiết bị chưa hỗ trợ các cài đặt này. Hãy nạp lại bản firmware mới.'; }
+  else n.hidden = true;
+}
+function applySettings(dv) {
+  if (dv.byteLength < 2) return;
+  $('swDoor').checked = (dv.getUint8(0) & 1) === 1;
+  $('swNav').checked  = (dv.getUint8(1) & 1) === 1;
+}
+async function sendSettings() {
+  if (!setChr) return;
+  const p = new Uint8Array([$('swDoor').checked ? 1 : 0, $('swNav').checked ? 1 : 0]);
+  try { await gatt(() => setChr.writeValue(p)); }
+  catch (e) {                                                          // lỗi: đọc lại trạng thái thật từ thiết bị
+    console.warn('ghi cài đặt lỗi', e);
+    try { applySettings(await gatt(() => setChr.readValue())); } catch (_) {}
+  }
+}
+$('swDoor').onchange = sendSettings;
+$('swNav').onchange = sendSettings;
+
+/* ====== Bluetooth (Web Bluetooth) ====== */
+function applyPacket(dv) {
+  if (dv.byteLength < 1 + N) return;
+  eqOn = (dv.getUint8(0) & 1) === 1;
+  for (let i = 0; i < N; i++) gains[i] = dv.getInt8(1 + i);
+  render();
+}
+function onNotify(e) { if (Date.now() - userTouchAt > 700) applyPacket(e.target.value); }   // bỏ qua khi đang kéo
+function setStatus(on, text) {
+  connected = on; $('dot').classList.toggle('on', on); $('stt').textContent = text;
+  $('btnConn').textContent = on ? 'Ngắt kết nối' : 'Kết nối thiết bị';
+  $('btnConn').classList.toggle('disc', on);
+  refreshOpts();
+}
+async function connectGatt() {
+  setChr = null;
+  setStatus(false, 'Đang kết nối…');
+  const srv = await device.gatt.connect();
+  const svc = await srv.getPrimaryService(SERVICE);
+  chr = await svc.getCharacteristic(CHAR);
+  chr.addEventListener('characteristicvaluechanged', onNotify);
+  await chr.startNotifications();
+  applyPacket(await chr.readValue());
+  setChr = null;
+  try {                                                              // firmware cũ không có kênh này: EQ vẫn dùng bình thường
+    const sc = await svc.getCharacteristic(SET_CHAR);
+    sc.addEventListener('characteristicvaluechanged', e => applySettings(e.target.value));
+    await sc.startNotifications();
+    applySettings(await sc.readValue());
+    setChr = sc;
+  } catch (e) { console.warn('Không có kênh cài đặt', e); }
+  setStatus(true, 'Đã kết nối · ' + (device.name || 'VF2'));
+}
+async function onDisc() {
+  setStatus(false, 'Mất kết nối, đang thử lại…');
+  for (let t = 0; t < 6 && !connected && device; t++) {
+    await new Promise(r => setTimeout(r, 1500));
+    try { await connectGatt(); return; } catch (e) { /* thử tiếp */ }
+  }
+  if (!connected) setStatus(false, 'Chưa kết nối');
+}
+$('btnConn').onclick = async () => {
+  if (connected) { const d = device; device = null; d.gatt.disconnect(); setStatus(false, 'Chưa kết nối'); return; }
+  try {
+    device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE] }], optionalServices: [SERVICE] });
+    device.addEventListener('gattserverdisconnected', onDisc);
+    await connectGatt();
+  } catch (e) {
+    setStatus(false, e.name === 'NotFoundError' ? 'Chưa chọn thiết bị' : 'Lỗi: ' + e.message);
+  }
+};
+
+/* ====== Cài đặt thành ứng dụng (PWA) ====== */
+let installEvt = null;
+const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW', e));
+if (!isStandalone) {
+  $('btnInstall').hidden = false;
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
+  $('btnInstall').onclick = async () => {
+    if (installEvt) { installEvt.prompt(); await installEvt.userChoice; installEvt = null; return; }
+    const h = $('installHelp') || $('msg'); if (!h) return; h.hidden = false;
+    h.innerHTML = 'Chưa hiện hộp thoại cài đặt tự động. Trong Chrome bấm menu <b>⋮</b> → <b>Cài đặt ứng dụng</b> (hoặc <b>Thêm vào màn hình chính</b>). Nếu không thấy mục này, hãy kiểm tra trang đang mở bằng <b>HTTPS</b> và tải lại trang một lần.';
+  };
+}
+addEventListener('appinstalled', () => { $('btnInstall').hidden = true; if ($('installHelp')) $('installHelp').hidden = true; });
+
+/* ====== Khởi động ====== */
+render();
+if ($('msg')) $('msg').innerHTML = (navigator.bluetooth && window.isSecureContext)
+  ? 'Bật <b>Bluetooth</b> và <b>Vị trí (Location)</b> trên điện thoại, bấm <b>Kết nối Bluetooth</b> rồi chọn thiết bị <b>VF2 Bluetooth</b> (loại BLE). Nhạc vẫn phát qua kết nối Bluetooth audio như bình thường. Chạm đúp vào nhãn tần số để đưa băng đó về 0 dB.'
+  : '<b>Trình duyệt này không hỗ trợ Web Bluetooth</b> hoặc trang không chạy qua HTTPS. Hãy mở bằng <b>Chrome trên Android</b> qua địa chỉ https://… (vd GitHub Pages).';
+</script>
+</body>
+</html>
