@@ -1,6 +1,6 @@
 // Service worker: luu san app de mo duoc ca khi khong co mang (trong xe)
 // Doi so phien ban khi sua file de dien thoai cap nhat.
-const CACHE = 'vf2-eq-v5';
+const CACHE = 'vf2-eq-v7';
 const FILES = ['./', './index.html', './manifest.webmanifest', './logo.png', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 
 self.addEventListener('install', e => {

@@ -74,7 +74,16 @@ canvas{width:100%;height:110px;display:block;margin-bottom:6px}
 .tg:checked{background:#1f9d55}
 .tg:checked::after{transform:translateX(20px)}
 .tg:disabled{opacity:.4}
+.vblock + .opt{border-top:1px solid var(--line)}
+.vblock .opt{padding-bottom:4px}
+.sl{padding:2px 0 12px;transition:opacity .15s}
+.sl-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:12px;color:var(--mut)}
+.sl-h output{font-size:14px;font-weight:650;color:var(--acc);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sl input[type=range]{width:100%;height:32px;margin:0;accent-color:var(--acc);touch-action:pan-y}
+.sl.dim{opacity:.4}
 .off .eq,.off canvas{opacity:.45}
+.ver{margin-top:14px;padding-top:10px;border-top:1px solid var(--line);display:flex;justify-content:center;gap:6px 18px;flex-wrap:wrap;font-size:11px;color:var(--mut);font-variant-numeric:tabular-nums}
+.ver b{color:var(--txt);font-weight:600}
 @media (min-width:600px){.val,.lab{font-size:11px}}
 </style>
 </head>
@@ -103,6 +112,16 @@ canvas{width:100%;height:110px;display:block;margin-bottom:6px}
 </div>
 
 <div class="panel opts" id="opts">
+  <div class="vblock">
+    <label class="opt">
+      <span><b>Giới hạn âm lượng tối đa</b></span>
+      <input type="checkbox" class="tg" id="swMax" disabled>
+    </label>
+    <div class="sl dim" id="slMax">
+      <div class="sl-h"><span>Mức tối đa</span><output id="outMax">80%</output></div>
+      <input type="range" id="rgMax" min="20" max="100" step="1" value="80" disabled>
+    </div>
+  </div>
   <label class="opt">
     <span><b>Giảm nhỏ nhạc khi mở cửa</b><small>Bật: mở cửa xe thì nhạc tự nhỏ lại.</small></span>
     <input type="checkbox" class="tg" id="swDoor" disabled>
@@ -118,12 +137,18 @@ canvas{width:100%;height:110px;display:block;margin-bottom:6px}
   <button class="pri grow" id="btnInstall" hidden>Cài đặt ứng dụng</button>
 </div>
 
+<footer class="ver">
+  <span>Firmware: <b id="fwVer">—</b></span>
+  <span>Website: <b id="webVer"></b></span>
+</footer>
+
 <script>
 'use strict';
 /* ====== Cấu hình: PHẢI khớp với firmware (BLE.cpp, DSP.cpp) ====== */
 const SERVICE = '7c8f0001-3b1e-4a52-9d6a-2f5e8b1c0001';
 const CHAR    = '7c8f0002-3b1e-4a52-9d6a-2f5e8b1c0001';
 const SET_CHAR = '7c8f0003-3b1e-4a52-9d6a-2f5e8b1c0001';   // cài đặt: [giảm nhạc khi mở cửa, đổi phím chuyển bài]
+const WEB_VERSION = '1.0.0';                                  // phiên bản website: đổi mỗi khi sửa web (nhớ đổi cả CACHE trong sw.js)
 const N = 15, FS = 44100, Q = 2.14, GMAX = 24;              // gain tính theo 0.5 dB: -24..+24
 const FREQ  = [25,40,63,100,160,250,400,630,1000,1600,2500,4000,6300,10000,16000];
 const LABEL = ['25','40','63','100','160','250','400','630','1k','1.6k','2.5k','4k','6.3k','10k','16k'];
@@ -146,6 +171,7 @@ const PRESETS = [   // 25  40  63 100 160 250 400 630  1k 1.6k 2.5k 4k 6.3k 10k 
 /* ====== Trạng thái ====== */
 let gains = new Array(N).fill(0), eqOn = true;
 let device = null, chr = null, setChr = null, connected = false, userTouchAt = 0;
+let setLen = 2, maxOn = true, maxPct = 80, setTouchAt = 0, fwVer = null;   // setLen: 2 = firmware cũ (chưa có giới hạn âm lượng tối đa), 4 = mới
 const $ = id => document.getElementById(id);
 
 /* ====== Dựng giao diện ====== */
@@ -278,28 +304,79 @@ $('chkOn').onchange = e => { eqOn = e.target.checked; render(); queueSend(); };
 
 /* ====== Cài đặt xe (giảm nhạc khi mở cửa, đổi phím chuyển bài) ====== */
 function refreshOpts() {
-  const ok = connected && !!setChr;
+  const ok = connected && !!setChr, v4 = ok && setLen >= 4;
   $('swDoor').disabled = $('swNav').disabled = !ok;
+  $('swMax').disabled = !v4;
+  renderVol(); renderVer();
   const n = $('optNote');
   if (connected && !setChr) { n.hidden = false; n.textContent = 'Firmware của thiết bị chưa hỗ trợ các cài đặt này. Hãy nạp lại bản firmware mới.'; }
+  else if (ok && setLen < 4) { n.hidden = false; n.textContent = 'Firmware chưa hỗ trợ giới hạn âm lượng tối đa. Hãy nạp lại bản firmware mới.'; }
   else n.hidden = true;
+}
+/* dB thực của trần âm lượng: cùng đường cong mũ với firmware (Media.cpp, set_output_level) */
+function capDb(pct) {
+  const base = 1.4, bits = 12, z = Math.pow(base, -bits), lv = Math.floor(127 * pct / 100);
+  const f = Math.floor((Math.pow(base, lv * bits / 127 - bits) - z) * 4096 / (1 - z));
+  return f > 0 ? 20 * Math.log10(f / 4096) : -Infinity;
+}
+function renderVol() {
+  const v4 = connected && !!setChr && setLen >= 4;
+  $('swMax').checked = maxOn;
+  $('rgMax').value = maxPct;
+  $('rgMax').disabled = !(v4 && maxOn);
+  $('slMax').classList.toggle('dim', !maxOn);
+  const d = capDb(maxPct);
+  $('outMax').textContent = maxPct + '% (' + (isFinite(d) ? (d > -0.05 ? '0' : d.toFixed(1).replace('-', '−')) : '−∞') + ' dB)';
+}
+function renderVer() {
+  $('webVer').textContent = 'v' + WEB_VERSION;
+  $('fwVer').textContent = connected ? (fwVer ? 'v' + fwVer : 'Bản cũ (chưa báo phiên bản)') : '—';
 }
 function applySettings(dv) {
   if (dv.byteLength < 2) return;
+  if (dv.byteLength >= 7) fwVer = dv.getUint8(4) + '.' + dv.getUint8(5) + '.' + dv.getUint8(6);
   $('swDoor').checked = (dv.getUint8(0) & 1) === 1;
   $('swNav').checked  = (dv.getUint8(1) & 1) === 1;
+  const old = setLen;
+  setLen = dv.byteLength >= 4 ? 4 : 2;
+  if (setLen >= 4 && Date.now() - setTouchAt > 700) {                  // bỏ qua khi đang kéo thanh trượt
+    maxOn  = (dv.getUint8(0) & 2) !== 0;
+    maxPct = Math.max(20, Math.min(100, dv.getUint8(2)));
+  }
+  if (old !== setLen) refreshOpts(); else renderVol();
+  renderVer();
 }
 async function sendSettings() {
   if (!setChr) return;
-  const p = new Uint8Array([$('swDoor').checked ? 1 : 0, $('swNav').checked ? 1 : 0]);
+  let b0 = $('swDoor').checked ? 1 : 0, b1 = $('swNav').checked ? 1 : 0;
+  const a = [];
+  if (setLen >= 4) { if (maxOn) b0 |= 2; a.push(b0, b1, maxPct, 0); }   // byte 3 dự phòng
+  else a.push(b0, b1);                                                 // firmware cũ chỉ nhận 2 byte
+  const p = new Uint8Array(a);
   try { await gatt(() => setChr.writeValue(p)); }
   catch (e) {                                                          // lỗi: đọc lại trạng thái thật từ thiết bị
     console.warn('ghi cài đặt lỗi', e);
     try { applySettings(await gatt(() => setChr.readValue())); } catch (_) {}
   }
 }
-$('swDoor').onchange = sendSettings;
-$('swNav').onchange = sendSettings;
+/* gộp thay đổi khi kéo thanh trượt: mỗi lần chỉ 1 lệnh ghi, ~15 lần/giây */
+let setSending = false, setDirty = false;
+function queueSettings() { setDirty = true; if (!setSending) setPump(); }
+async function setPump() {
+  setSending = true;
+  while (setDirty) {
+    setDirty = false;
+    if (!connected || !setChr) break;
+    await sendSettings();
+    await new Promise(r => setTimeout(r, 60));
+  }
+  setSending = false;
+}
+$('swDoor').onchange = queueSettings;
+$('swNav').onchange = queueSettings;
+$('swMax').onchange = e => { maxOn  = e.target.checked; setTouchAt = Date.now(); renderVol(); queueSettings(); };
+$('rgMax').oninput  = e => { maxPct = +e.target.value;  setTouchAt = Date.now(); renderVol(); queueSettings(); };
+renderVol(); renderVer();
 
 /* ====== Bluetooth (Web Bluetooth) ====== */
 function applyPacket(dv) {
@@ -316,7 +393,7 @@ function setStatus(on, text) {
   refreshOpts();
 }
 async function connectGatt() {
-  setChr = null;
+  setChr = null; setLen = 2; fwVer = null;
   setStatus(false, 'Đang kết nối…');
   const srv = await device.gatt.connect();
   const svc = await srv.getPrimaryService(SERVICE);
